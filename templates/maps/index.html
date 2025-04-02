@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}Map - Geolocation App{% endblock %}
+
+{% block extra_css %}
+<style>
+    #map {
+        height: 100vh;
+        width: 100%;
+    }
+    .location-details {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        max-width: 300px;
+    }
+    .accuracy-circle {
+        stroke-width: 2;
+        stroke-opacity: 0.8;
+        fill-opacity: 0.35;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="map"></div>
+<div class="location-details" id="locationDetails" style="display: none;">
+    <h6>Detalles de Ubicación</h6>
+    <p id="coordinates"></p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let map;
+    let markers = [];
+    let currentPosition = null;
+    let accuracyCircle = null;
+    const GOOGLE_MAPS_API_KEY = '{{ google_maps_api_key }}';
+
+    function initMap() {
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: { lat: 0, lng: 0 },
+            zoom: 2,
+            mapTypeControl: true,
+            streetViewControl: true,
+            fullscreenControl: true,
+            mapTypeId: google.maps.MapTypeId.ROADMAP,
+            tilt: 0
+        });
+
+        // Get initial location
+        getCurrentLocation();
+    }
+
+    function getCurrentLocation() {
+        if (navigator.geolocation) {
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+
+            // Start watching position for continuous updates
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    currentPosition = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    const accuracy = position.coords.accuracy;
+
+                    // Center map on current position
+                    map.setCenter(currentPosition);
+                    map.setZoom(15);
+
+                    // Remove existing markers and accuracy circle
+                    if (accuracyCircle) {
+                        accuracyCircle.setMap(null);
+                    }
+                    markers.forEach(marker => marker.setMap(null));
+                    markers = [];
+
+                    // Add accuracy circle
+                    accuracyCircle = new google.maps.Circle({
+                        strokeColor: '#4285F4',
+                        strokeOpacity: 0.8,
+                        strokeWeight: 2,
+                        fillColor: '#4285F4',
+                        fillOpacity: 0.35,
+                        map: map,
+                        center: currentPosition,
+                        radius: accuracy
+                    });
+
+                    // Add current location marker
+                    const marker = new google.maps.Marker({
+                        position: currentPosition,
+                        map: map,
+                        title: 'Tu Ubicación',
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 7,
+                            fillColor: '#4285F4',
+                            fillOpacity: 1,
+                            strokeColor: '#ffffff',
+                            strokeWeight: 2,
+                        }
+                    });
+
+                    markers.push(marker);
+
+                    // Update location details
+                    updateLocationDetails(currentPosition);
+                },
+                (error) => {
+                    console.error('Error getting location:', error);
+                },
+                options
+            );
+        }
+    }
+
+    function updateLocationDetails(position) {
+        const detailsDiv = document.getElementById('locationDetails');
+        detailsDiv.style.display = 'block';
+
+        // Update coordinates
+        document.getElementById('coordinates').textContent = 
+            `Coordenadas: ${position.lat.toFixed(6)}, ${position.lng.toFixed(6)}`;
+    }
+
+    // Initialize map when the page loads
+    window.onload = initMap;
+</script>
+<script async defer
+    src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap">
+</script>
+{% endblock %} 
